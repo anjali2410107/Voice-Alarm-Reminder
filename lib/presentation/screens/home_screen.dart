@@ -19,12 +19,6 @@ class HomeScreen extends StatelessWidget {
               'Voice Alarms',
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                onPressed: () {},
-              )
-            ],
           ),
           BlocBuilder<AlarmBloc, AlarmState>(
             builder: (context, state) {

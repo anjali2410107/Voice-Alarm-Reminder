@@ -7,6 +7,7 @@ import 'logic/blocs/recorder/recorder_bloc.dart';
 import 'services/audio_service.dart';
 import 'services/notification_service.dart';
 import 'presentation/screens/home_screen.dart';
+import 'presentation/screens/main_scaffold.dart';
 import 'presentation/screens/alarm_ring_screen.dart';
 
 void main() async {
@@ -110,7 +111,7 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
         ),
-        home: const HomeScreen(),
+        home: const MainScaffold(),
       ),
     );
   }
