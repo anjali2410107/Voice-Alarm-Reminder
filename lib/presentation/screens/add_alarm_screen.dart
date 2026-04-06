@@ -1,0 +1,307 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
+import '../../logic/blocs/alarm/alarm_bloc.dart';
+import '../../logic/blocs/recorder/recorder_bloc.dart';
+import '../../data/models/alarm_model.dart';
+
+class AddAlarmScreen extends StatefulWidget {
+  final Alarm? alarm;
+  const AddAlarmScreen({super.key, this.alarm});
+
+  @override
+  State<AddAlarmScreen> createState() => _AddAlarmScreenState();
+}
+
+class _AddAlarmScreenState extends State<AddAlarmScreen> {
+  late TextEditingController _titleController;
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
+  String? _recordedPath;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.alarm?.title ?? '');
+    _selectedDate = widget.alarm?.dateTime ?? DateTime.now();
+    _selectedTime = TimeOfDay.fromDateTime(_selectedDate);
+    _recordedPath = widget.alarm?.audioPath;
+    
+    // Clear recorder state when entering screen
+    context.read<RecorderBloc>().add(ResetRecorder());
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
+
+  Future<void> _selectTime() async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime,
+    );
+    if (picked != null && picked != _selectedTime) {
+      setState(() {
+        _selectedTime = picked;
+      });
+    }
+  }
+
+  void _saveAlarm() {
+    final combinedDateTime = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+
+    final String id = widget.alarm?.id ?? const Uuid().v4();
+    final Alarm newAlarm = Alarm(
+      id: id,
+      title: _titleController.text.isEmpty ? 'New Alarm' : _titleController.text,
+      dateTime: combinedDateTime,
+      audioPath: _recordedPath,
+      isActive: true,
+      isOneTime: true,
+    );
+
+    if (widget.alarm == null) {
+      context.read<AlarmBloc>().add(AddAlarm(newAlarm));
+    } else {
+      context.read<AlarmBloc>().add(UpdateAlarm(newAlarm));
+    }
+
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.alarm == null ? 'New Alarm' : 'Edit Alarm'),
+        actions: [
+          TextButton(
+            onPressed: _saveAlarm,
+            child: const Text('SAVE', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                labelText: 'Label',
+                hintText: 'Work Meeting, Wake up...',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                prefixIcon: const Icon(Icons.label_outline_rounded),
+              ),
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: _selectDate,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('DATE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text(
+                            DateFormat('EEE, MMM d').format(_selectedDate),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: InkWell(
+                    onTap: _selectTime,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('TIME', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          Text(
+                            _selectedTime.format(context),
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 48),
+            BlocListener<RecorderBloc, RecorderState>(
+              listener: (context, state) {
+                if (state.status == RecorderStatus.success) {
+                  setState(() {
+                    _recordedPath = state.audioPath;
+                  });
+                }
+              },
+              child: const VoiceRecorderSection(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class VoiceRecorderSection extends StatelessWidget {
+  const VoiceRecorderSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<RecorderBloc, RecorderState>(
+      builder: (context, state) {
+        return Column(
+          children: [
+            Text(
+              'Voice Reminder',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Record a personal message to hear when the alarm rings.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.outline),
+            ),
+            const SizedBox(height: 32),
+            if (state.status == RecorderStatus.recording)
+              _buildRecordingUI(context)
+            else if (state.status == RecorderStatus.success || state.status == RecorderStatus.playing)
+               _buildSuccessUI(context, state)
+            else
+               _buildInitialUI(context),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildInitialUI(BuildContext context) {
+    return Column(
+      children: [
+        IconButton.filled(
+          onPressed: () {
+            final fileName = 'alarm_${DateTime.now().millisecondsSinceEpoch}';
+            context.read<RecorderBloc>().add(StartRecording(fileName));
+          },
+          iconSize: 64,
+          icon: const Icon(Icons.mic_rounded),
+        ),
+        const SizedBox(height: 16),
+        const Text('Tap to start recording', style: TextStyle(fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _buildRecordingUI(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(
+          height: 100,
+          child: Center(
+            child: LinearProgressIndicator(), 
+          ),
+        ),
+        IconButton.filled(
+          onPressed: () {
+            context.read<RecorderBloc>().add(StopRecording());
+          },
+          iconSize: 64,
+          icon: const Icon(Icons.stop_rounded),
+          style: IconButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+        ),
+        const SizedBox(height: 16),
+        const Text('Recording...', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+      ],
+    );
+  }
+
+  Widget _buildSuccessUI(BuildContext context, RecorderState state) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton.filledTonal(
+                onPressed: () {
+                   if (state.status == RecorderStatus.playing) {
+                      context.read<RecorderBloc>().add(StopPlayback());
+                   } else {
+                      context.read<RecorderBloc>().add(PlayRecording(state.audioPath!));
+                   }
+                },
+                iconSize: 32,
+                icon: Icon(state.status == RecorderStatus.playing ? Icons.stop_rounded : Icons.play_arrow_rounded),
+              ),
+              const SizedBox(width: 24),
+              IconButton.outlined(
+                onPressed: () {
+                   context.read<RecorderBloc>().add(ResetRecorder());
+                },
+                iconSize: 32,
+                icon: const Icon(Icons.replay_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Text('Voice recording saved', style: TextStyle(fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
