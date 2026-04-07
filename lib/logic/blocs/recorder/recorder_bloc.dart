@@ -1,6 +1,9 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:uuid/uuid.dart';
 import '../../../services/audio_service.dart';
+import '../../../services/database_service.dart';
+import '../../../data/models/recording_model.dart';
 
 part 'recorder_event.dart';
 part 'recorder_state.dart';
@@ -16,6 +19,7 @@ class RecorderBloc extends Bloc<RecorderEvent, RecorderState> {
     on<PlayRecording>(_onPlayRecording);
     on<StopPlayback>(_onStopPlayback);
     on<ResetRecorder>(_onResetRecorder);
+    on<SetRecordingPath>(_onSetRecordingPath);
   }
 
   Future<void> _onStartRecording(StartRecording event, Emitter<RecorderState> emit) async {
@@ -35,6 +39,17 @@ class RecorderBloc extends Bloc<RecorderEvent, RecorderState> {
     try {
       final path = await _audioService.stopRecording();
       if (path != null) {
+        // Save to Library Automatically
+        final db = DatabaseService();
+        final id = const Uuid().v4();
+        
+        await db.insertRecording(Recording(
+          id: id,
+          name: 'Recording ${DateTime.now().hour}:${DateTime.now().minute}',
+          path: path,
+          dateTime: DateTime.now(),
+        ));
+        
         emit(state.copyWith(status: RecorderStatus.success, audioPath: path));
       }
     } catch (e) {
@@ -62,5 +77,9 @@ class RecorderBloc extends Bloc<RecorderEvent, RecorderState> {
 
   void _onResetRecorder(ResetRecorder event, Emitter<RecorderState> emit) {
     emit(const RecorderState());
+  }
+
+  void _onSetRecordingPath(SetRecordingPath event, Emitter<RecorderState> emit) {
+    emit(state.copyWith(status: RecorderStatus.success, audioPath: event.path));
   }
 }

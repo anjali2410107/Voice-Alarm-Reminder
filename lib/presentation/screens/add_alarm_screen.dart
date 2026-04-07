@@ -5,6 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../../logic/blocs/alarm/alarm_bloc.dart';
 import '../../logic/blocs/recorder/recorder_bloc.dart';
+import '../../logic/blocs/recording/recording_bloc.dart';
+import '../../logic/blocs/recording/recording_event.dart';
+import '../../logic/blocs/recording/recording_state.dart';
 import '../../data/models/alarm_model.dart';
 
 class AddAlarmScreen extends StatefulWidget {
@@ -211,6 +214,9 @@ class _AddAlarmScreenState extends State<AddAlarmScreen> {
             BlocListener<RecorderBloc, RecorderState>(
               listener: (context, state) {
                 if (state.status == RecorderStatus.success) {
+                  // Refresh the library list immediately so it's not "late"
+                  context.read<RecordingBloc>().add(LoadRecordings());
+                  
                   setState(() {
                     _recordedPath = state.audioPath;
                   });
@@ -260,17 +266,91 @@ class VoiceRecorderSection extends StatelessWidget {
   Widget _buildInitialUI(BuildContext context) {
     return Column(
       children: [
-        IconButton.filled(
-          onPressed: () {
-            final fileName = 'alarm_${DateTime.now().millisecondsSinceEpoch}';
-            context.read<RecorderBloc>().add(StartRecording(fileName));
-          },
-          iconSize: 64,
-          icon: const Icon(Icons.mic_rounded),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Column(
+              children: [
+                IconButton.filled(
+                  onPressed: () {
+                    final fileName = 'alarm_${DateTime.now().millisecondsSinceEpoch}';
+                    context.read<RecorderBloc>().add(StartRecording(fileName));
+                  },
+                  iconSize: 48,
+                  icon: const Icon(Icons.mic_rounded),
+                ),
+                const SizedBox(height: 8),
+                const Text('Record New', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+            const SizedBox(width: 48),
+            Column(
+              children: [
+                IconButton.filledTonal(
+                  onPressed: () => _showLibraryPicker(context),
+                  iconSize: 48,
+                  icon: const Icon(Icons.library_music_rounded),
+                ),
+                const SizedBox(height: 8),
+                const Text('From Library', style: TextStyle(fontSize: 12)),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(height: 16),
-        const Text('Tap to start recording', style: TextStyle(fontWeight: FontWeight.w500)),
       ],
+    );
+  }
+
+  void _showLibraryPicker(BuildContext context) {
+    final recordingBloc = context.read<RecordingBloc>();
+    recordingBloc.add(LoadRecordings());
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (bottomSheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Choose Recording', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            ),
+            const Divider(),
+            Expanded(
+              child: BlocBuilder<RecordingBloc, RecordingState>(
+                bloc: recordingBloc,
+                builder: (context, state) {
+                  if (state.recordings.isEmpty) {
+                    return const Center(child: Text('No recordings found.'));
+                  }
+                  return ListView.builder(
+                    controller: scrollController,
+                    itemCount: state.recordings.length,
+                    itemBuilder: (context, index) {
+                      final recording = state.recordings[index];
+                      return ListTile(
+                        leading: const Icon(Icons.mic_rounded),
+                        title: Text(recording.name),
+                        subtitle: Text(DateFormat('MMM dd, hh:mm a').format(recording.dateTime)),
+                        onTap: () {
+                          // USE THE NEW EVENT instead of manual emit
+                          context.read<RecorderBloc>().add(SetRecordingPath(recording.path));
+                          Navigator.pop(bottomSheetContext);
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

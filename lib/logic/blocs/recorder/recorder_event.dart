@@ -28,3 +28,11 @@ class PlayRecording extends RecorderEvent {
 class StopPlayback extends RecorderEvent {}
 
 class ResetRecorder extends RecorderEvent {}
+
+class SetRecordingPath extends RecorderEvent {
+  final String path;
+  const SetRecordingPath(this.path);
+
+  @override
+  List<Object?> get props => [path];
+}

@@ -4,7 +4,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'data/repositories/alarm_repository.dart';
 import 'logic/blocs/alarm/alarm_bloc.dart';
 import 'logic/blocs/recorder/recorder_bloc.dart';
+import 'logic/blocs/recording/recording_bloc.dart';
+import 'logic/blocs/recording/recording_event.dart';
 import 'services/audio_service.dart';
+import 'services/database_service.dart';
 import 'services/notification_service.dart';
 import 'data/models/alarm_model.dart';
 import 'presentation/screens/main_scaffold.dart';
@@ -134,20 +137,31 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiRepositoryProvider(
       providers: [
-        BlocProvider<AlarmBloc>(
-          create: (context) => AlarmBloc(
-            repository: widget.alarmRepository,
-            notificationService: widget.notificationService,
-          )..add(LoadAlarms()),
-        ),
-        BlocProvider<RecorderBloc>(
-          create: (context) =>
-              RecorderBloc(audioService: widget.audioService),
-        ),
+        RepositoryProvider.value(value: widget.audioService),
+        RepositoryProvider.value(value: widget.notificationService),
+        RepositoryProvider.value(value: widget.alarmRepository),
       ],
-      child: MaterialApp(
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<AlarmBloc>(
+            create: (context) => AlarmBloc(
+              repository: widget.alarmRepository,
+              notificationService: widget.notificationService,
+            )..add(LoadAlarms()),
+          ),
+          BlocProvider<RecorderBloc>(
+            create: (context) =>
+                RecorderBloc(audioService: widget.audioService),
+          ),
+          BlocProvider<RecordingBloc>(
+            create: (context) => RecordingBloc(
+              databaseService: DatabaseService(),
+            )..add(LoadRecordings()),
+          ),
+        ],
+        child: MaterialApp(
         title: 'Voice Alarm Reminder',
         navigatorKey: navigatorKey,
         scaffoldMessengerKey: messengerKey,
@@ -182,6 +196,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
         ),
         home: const MainScaffold(),
       ),
-    );
+    ),
+   );
   }
 }

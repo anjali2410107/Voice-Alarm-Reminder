@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
+import 'recordings_library_screen.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -14,6 +15,7 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
+    RecordingsLibraryScreen(),
     SettingsScreen(),
   ];
 
@@ -36,6 +38,11 @@ class _MainScaffoldState extends State<MainScaffold> {
             icon: Icon(Icons.alarm_outlined),
             selectedIcon: Icon(Icons.alarm_rounded),
             label: 'Alarms',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.mic_none_rounded),
+            selectedIcon: Icon(Icons.mic_rounded),
+            label: 'Library',
           ),
           NavigationDestination(
             icon: Icon(Icons.settings_outlined),
