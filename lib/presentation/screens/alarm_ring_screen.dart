@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../../logic/blocs/alarm/alarm_bloc.dart';
@@ -13,17 +15,32 @@ class AlarmRingScreen extends StatefulWidget {
   State<AlarmRingScreen> createState() => _AlarmRingScreenState();
 }
 
-class _AlarmRingScreenState extends State<AlarmRingScreen> with SingleTickerProviderStateMixin {
+class _AlarmRingScreenState extends State<AlarmRingScreen>
+    with SingleTickerProviderStateMixin {
+  static const _channel = MethodChannel('com.example.alarmclock/settings');
   late AnimationController _controller;
   final AudioService _audioService = AudioService();
+
+  late DateTime _now;
+  Timer? _clockTimer;
 
   @override
   void initState() {
     super.initState();
+    _now = DateTime.now();
+
+    _channel.invokeMethod('setShowOnLockScreen').catchError((e) {
+      debugPrint('setShowOnLockScreen error: $e');
+    });
+
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
     )..repeat(reverse: true);
+
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    });
 
     _playAlarmSource();
   }
@@ -31,29 +48,33 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> with SingleTickerProv
   Future<void> _playAlarmSource() async {
     if (widget.alarm.audioPath != null) {
       await _audioService.playRecording(widget.alarm.audioPath!);
-    } else {
-      // Fallback to a system sound or a default sound
-      // For now, we'll assume the notification sound handles the initial alert, 
-      // but we could play a default asset here.
     }
   }
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _controller.dispose();
     _audioService.stopPlayback();
     _audioService.dispose();
+    _channel.invokeMethod('clearLockScreenFlags').catchError((e) {
+      debugPrint('clearLockScreenFlags error: $e');
+    });
     super.dispose();
   }
 
   void _dismiss() {
-    context.read<AlarmBloc>().add(UpdateAlarm(widget.alarm.copyWith(isActive: false)));
+    context
+        .read<AlarmBloc>()
+        .add(UpdateAlarm(widget.alarm.copyWith(isActive: false)));
     Navigator.of(context).pop();
   }
 
   void _snooze() {
     final snoozeTime = DateTime.now().add(const Duration(minutes: 5));
-    context.read<AlarmBloc>().add(UpdateAlarm(widget.alarm.copyWith(dateTime: snoozeTime)));
+    context
+        .read<AlarmBloc>()
+        .add(UpdateAlarm(widget.alarm.copyWith(dateTime: snoozeTime)));
     Navigator.of(context).pop();
   }
 
@@ -76,7 +97,10 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> with SingleTickerProv
                   padding: const EdgeInsets.all(40),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withOpacity(0.1),
                   ),
                   child: Icon(
                     Icons.alarm_rounded,
@@ -93,7 +117,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> with SingleTickerProv
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
-                  timeFormat.format(DateTime.now()),
+                  timeFormat.format(_now),
                   style: Theme.of(context).textTheme.displayLarge?.copyWith(
                     fontSize: 80,
                     fontWeight: FontWeight.bold,
@@ -101,7 +125,7 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> with SingleTickerProv
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  amPmFormat.format(DateTime.now()),
+                  amPmFormat.format(_now),
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
               ],
@@ -113,7 +137,8 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> with SingleTickerProv
             ),
             const Spacer(),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
               child: Row(
                 children: [
                   Expanded(
@@ -121,9 +146,11 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> with SingleTickerProv
                       onPressed: _snooze,
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 24),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
                       ),
-                      child: const Text('SNOOZE (5m)', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text('SNOOZE (5m)',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -132,9 +159,11 @@ class _AlarmRingScreenState extends State<AlarmRingScreen> with SingleTickerProv
                       onPressed: _dismiss,
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 24),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20)),
                       ),
-                      child: const Text('DISMISS', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text('DISMISS',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],

@@ -6,16 +6,17 @@ import 'logic/blocs/alarm/alarm_bloc.dart';
 import 'logic/blocs/recorder/recorder_bloc.dart';
 import 'services/audio_service.dart';
 import 'services/notification_service.dart';
-import 'presentation/screens/home_screen.dart';
+import 'data/models/alarm_model.dart';
 import 'presentation/screens/main_scaffold.dart';
 import 'presentation/screens/alarm_ring_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   final notificationService = NotificationService();
   await notificationService.init();
-  
+  await notificationService.requestPermissions();
+
   final audioService = AudioService();
   final alarmRepository = AlarmRepository();
 
@@ -27,6 +28,8 @@ void main() async {
 }
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<ScaffoldMessengerState> messengerKey =
+GlobalKey<ScaffoldMessengerState>();
 
 class MyApp extends StatefulWidget {
   final AlarmRepository alarmRepository;
@@ -44,25 +47,89 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _setupNotificationHandler();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.notificationService.checkPendingAlarmPayload();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint('▶️ App resumed — checking for pending alarm payload');
+      widget.notificationService.checkPendingAlarmPayload();
+    }
   }
 
   void _setupNotificationHandler() {
+    debugPrint('📋 Setting up notification tap handler');
     widget.notificationService.setOnNotificationTap((payload) async {
+      debugPrint('🔔 onNotificationTap FIRED with payload: "$payload"');
+
+      if (payload == null || payload.isEmpty) {
+        debugPrint('⚠️ Empty payload — ignoring');
+        return;
+      }
+
+      if (payload == 'test_payload') {
+        debugPrint('🧪 Test payload detected — navigating to test ring screen');
+        _navigateToRingScreen(
+          Alarm(
+            id: 'test',
+            title: 'Test Voice Alarm',
+            dateTime: DateTime.now(),
+          ),
+        );
+        return;
+      }
+
+      try {
+        debugPrint('🔍 Looking up alarm with id: $payload');
         final alarms = await widget.alarmRepository.getAlarms();
-       try {
-         final alarm = alarms.firstWhere((a) => a.audioPath == payload || a.id == payload);
-         navigatorKey.currentState?.push(
-            MaterialPageRoute(builder: (_) => AlarmRingScreen(alarm: alarm))
-         );
-       } catch (e) {
-         debugPrint('Alarm not found for payload: $payload');
-       }
+        debugPrint('📦 Total alarms in DB: ${alarms.length}');
+        final alarm = alarms.firstWhere(
+          (a) => a.id == payload,
+          orElse: () => throw Exception('Alarm not found for id: $payload'),
+        );
+        debugPrint('✅ Found alarm: ${alarm.title}');
+        _navigateToRingScreen(alarm);
+      } catch (e) {
+        debugPrint('❌ Alarm lookup failed: $e');
+      }
     });
+    debugPrint('📋 Notification tap handler registered');
+  }
+
+  void _navigateToRingScreen(Alarm alarm) {
+    debugPrint('🚀 _navigateToRingScreen called for: ${alarm.title}');
+    debugPrint('🔑 navigatorKey.currentState: ${navigatorKey.currentState}');
+
+    void doNavigate() {
+      final nav = navigatorKey.currentState;
+      if (nav == null) {
+        debugPrint('❌ Navigator not ready yet — retrying in 500ms');
+        Future.delayed(const Duration(milliseconds: 500), doNavigate);
+        return;
+      }
+      debugPrint('✅ Navigating to AlarmRingScreen');
+      nav.push(
+        MaterialPageRoute(builder: (_) => AlarmRingScreen(alarm: alarm)),
+      );
+    }
+
+    doNavigate();
   }
 
   @override
@@ -76,12 +143,14 @@ class _MyAppState extends State<MyApp> {
           )..add(LoadAlarms()),
         ),
         BlocProvider<RecorderBloc>(
-          create: (context) => RecorderBloc(audioService: widget.audioService),
+          create: (context) =>
+              RecorderBloc(audioService: widget.audioService),
         ),
       ],
       child: MaterialApp(
         title: 'Voice Alarm Reminder',
         navigatorKey: navigatorKey,
+        scaffoldMessengerKey: messengerKey,
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,

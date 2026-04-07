@@ -21,7 +21,10 @@ android {
 
     defaultConfig {
         applicationId = "com.example.alarmclock"
-            minSdk = flutter.minSdkVersion
+        // FIXED: minSdk must be 31+ for USE_EXACT_ALARM permission.
+        // The default flutter.minSdkVersion (16) is too low and causes
+        // exact alarm scheduling to silently fail on Android 12+.
+        minSdk = 31
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -37,6 +40,7 @@ android {
 flutter {
     source = "../.."
 }
+
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

@@ -54,7 +54,27 @@ class HomeScreen extends StatelessWidget {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final alarm = state.alarms[index];
-                      return AlarmCard(alarm: alarm);
+                      return Dismissible(
+                        key: ValueKey(alarm.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.error,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                          child: const Icon(Icons.delete_rounded, color: Colors.white),
+                        ),
+                        onDismissed: (direction) {
+                          context.read<AlarmBloc>().add(DeleteAlarm(alarm.id));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('${alarm.title} deleted')),
+                          );
+                        },
+                        child: AlarmCard(alarm: alarm),
+                      );
                     },
                     childCount: state.alarms.length,
                   ),

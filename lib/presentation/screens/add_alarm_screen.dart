@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../main.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -28,7 +29,6 @@ class _AddAlarmScreenState extends State<AddAlarmScreen> {
     _selectedTime = TimeOfDay.fromDateTime(_selectedDate);
     _recordedPath = widget.alarm?.audioPath;
     
-    // Clear recorder state when entering screen
     context.read<RecorderBloc>().add(ResetRecorder());
   }
 
@@ -89,7 +89,39 @@ class _AddAlarmScreenState extends State<AddAlarmScreen> {
       context.read<AlarmBloc>().add(UpdateAlarm(newAlarm));
     }
 
+    final duration = combinedDateTime.difference(DateTime.now());
+    if (!duration.isNegative) {
+      String message;
+      if (duration.inHours >= 24) {
+        final dateFormat = DateFormat('EEE, MMM d');
+        final timeFormat = DateFormat('hh:mm a');
+        message = 'Alarm set for ${dateFormat.format(combinedDateTime)} at ${timeFormat.format(combinedDateTime)}';
+      } else {
+        message = 'Alarm set for ${_formatDuration(duration)} from now';
+      }
+
+      messengerKey.currentState?.showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+    }
+
     Navigator.of(context).pop();
+  }
+
+  String _formatDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes % 60;
+
+    final List<String> parts = [];
+    if (hours > 0) parts.add('$hours ${hours == 1 ? 'hour' : 'hours'}');
+    if (minutes > 0) parts.add('$minutes ${minutes == 1 ? 'minute' : 'minutes'}');
+
+    if (parts.isEmpty) return 'less than a minute';
+    return parts.join(' and ');
   }
 
   @override

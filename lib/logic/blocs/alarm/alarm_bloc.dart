@@ -39,10 +39,10 @@ class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
       await _repository.addAlarm(event.alarm);
       if (event.alarm.isActive) {
         await _notificationService.scheduleAlarm(
-          event.alarm.id.hashCode,
+          event.alarm.id.hashCode & 0x7FFFFFFF,
           event.alarm.title,
           event.alarm.dateTime,
-          event.alarm.audioPath,
+          event.alarm.id,
         );
       }
       add(LoadAlarms());
@@ -54,13 +54,13 @@ class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
   Future<void> _onUpdateAlarm(UpdateAlarm event, Emitter<AlarmState> emit) async {
     try {
       await _repository.updateAlarm(event.alarm);
-      await _notificationService.cancelAlarm(event.alarm.id.hashCode);
+      await _notificationService.cancelAlarm(event.alarm.id.hashCode & 0x7FFFFFFF);
       if (event.alarm.isActive) {
         await _notificationService.scheduleAlarm(
-          event.alarm.id.hashCode,
+          event.alarm.id.hashCode & 0x7FFFFFFF,
           event.alarm.title,
           event.alarm.dateTime,
-          event.alarm.audioPath,
+          event.alarm.id,
         );
       }
       add(LoadAlarms());
@@ -72,7 +72,7 @@ class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
   Future<void> _onDeleteAlarm(DeleteAlarm event, Emitter<AlarmState> emit) async {
     try {
       await _repository.deleteAlarm(event.id);
-      await _notificationService.cancelAlarm(event.id.hashCode);
+      await _notificationService.cancelAlarm(event.id.hashCode & 0x7FFFFFFF);
       add(LoadAlarms());
     } catch (e) {
       emit(AlarmError(e.toString()));
@@ -89,13 +89,13 @@ class AlarmBloc extends Bloc<AlarmEvent, AlarmState> {
         
         if (updatedAlarm.isActive) {
           await _notificationService.scheduleAlarm(
-            updatedAlarm.id.hashCode,
+            updatedAlarm.id.hashCode & 0x7FFFFFFF,
             updatedAlarm.title,
             updatedAlarm.dateTime,
-            updatedAlarm.audioPath,
+            updatedAlarm.id,
           );
         } else {
-          await _notificationService.cancelAlarm(updatedAlarm.id.hashCode);
+          await _notificationService.cancelAlarm(updatedAlarm.id.hashCode & 0x7FFFFFFF);
         }
         add(LoadAlarms());
       }
