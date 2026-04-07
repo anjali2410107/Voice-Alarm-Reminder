@@ -214,7 +214,6 @@ class _AddAlarmScreenState extends State<AddAlarmScreen> {
             BlocListener<RecorderBloc, RecorderState>(
               listener: (context, state) {
                 if (state.status == RecorderStatus.success) {
-                  // Refresh the library list immediately so it's not "late"
                   context.read<RecordingBloc>().add(LoadRecordings());
                   
                   setState(() {
@@ -338,7 +337,6 @@ class VoiceRecorderSection extends StatelessWidget {
                         title: Text(recording.name),
                         subtitle: Text(DateFormat('MMM dd, hh:mm a').format(recording.dateTime)),
                         onTap: () {
-                          // USE THE NEW EVENT instead of manual emit
                           context.read<RecorderBloc>().add(SetRecordingPath(recording.path));
                           Navigator.pop(bottomSheetContext);
                         },

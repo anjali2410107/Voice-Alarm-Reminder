@@ -39,7 +39,6 @@ class RecorderBloc extends Bloc<RecorderEvent, RecorderState> {
     try {
       final path = await _audioService.stopRecording();
       if (path != null) {
-        // Save to Library Automatically
         final db = DatabaseService();
         final id = const Uuid().v4();
         

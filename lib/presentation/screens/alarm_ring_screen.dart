@@ -49,6 +49,9 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
   Future<void> _playAlarmSource() async {
     if (widget.alarm.audioPath != null) {
       await _audioService.playRecording(widget.alarm.audioPath!);
+    } else {
+      // Fallback: Default system alarm sound
+      await _audioService.playDefaultAlarm();
     }
   }
 
