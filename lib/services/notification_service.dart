@@ -74,6 +74,17 @@ class NotificationService {
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
+    // Listen for native aggressive alarm trigger
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'onNativePayload') {
+        final payload = call.arguments as String?;
+        debugPrint('🎯 Received native payload via MethodChannel: $payload');
+        if (payload != null) {
+          _onNotificationTap?.call(payload);
+        }
+      }
+    });
+
     debugPrint('✅ Notifications initialized');
 
     final NotificationAppLaunchDetails? launchDetails =
@@ -201,13 +212,12 @@ class NotificationService {
       return;
     }
 
-    // Full-screen alarm notification — auto-shows on lock screen.
-    // fullScreenIntent requires USE_FULL_SCREEN_INTENT permission (declared in manifest).
-    // On Android 12 this is auto-granted; Android 14+ requires user to enable it.
+    // 🚨 CHANNEL V3: Silent but High Importance
+    // Fresh ID required to override Android's cached low-importance or sound settings.
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'alarm_channel_v2',
-      'Alarm Notifications',
-      channelDescription: 'Scheduled alarm reminders',
+      'alarm_channel_v3',
+      'Silent Alarm Notifications',
+      channelDescription: 'Scheduled silent alarm reminders',
       importance: Importance.max,
       priority: Priority.max,
       fullScreenIntent: true,
@@ -216,8 +226,8 @@ class NotificationService {
       ongoing: true,
       autoCancel: false,
       ticker: 'Alarm',
-      playSound: true,
-      enableVibration: true,
+      playSound: false, // 🔇 NO SYSTEM SOUND
+      enableVibration: false, // 🔇 NO VIBRATION
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
@@ -233,6 +243,7 @@ class NotificationService {
     );
 
     try {
+      // 1. Standard notification (silent) — handles lock screen waking
       await _notifications.zonedSchedule(
         id: id,
         title: 'Alarm: $title',
@@ -242,15 +253,41 @@ class NotificationService {
         androidScheduleMode: AndroidScheduleMode.alarmClock,
         payload: payload,
       );
-      debugPrint('✅ Alarm scheduled successfully');
+
+      // 2. Aggressive native launch — handles screen-on foregrounding
+      await _scheduleNativeAggressiveAlarm(id, dateTime, payload);
+
+      debugPrint('✅ Alarm scheduled successfully (Silent + Aggressive)');
     } catch (e) {
       debugPrint('❌ Failed to schedule alarm: $e');
       rethrow;
     }
   }
 
+  Future<void> _scheduleNativeAggressiveAlarm(
+      int id, DateTime dateTime, String? payload) async {
+    if (Platform.isAndroid) {
+      try {
+        await _channel.invokeMethod('scheduleAggressiveAlarm', {
+          'id': id,
+          'time': dateTime.millisecondsSinceEpoch,
+          'payload': payload,
+        });
+      } catch (e) {
+        debugPrint('⚠️ Native aggressive schedule failed: $e');
+      }
+    }
+  }
+
   Future<void> cancelAlarm(int id) async {
     await _notifications.cancel(id: id);
+    if (Platform.isAndroid) {
+      try {
+        await _channel.invokeMethod('cancelAggressiveAlarm', {'id': id});
+      } catch (e) {
+        debugPrint('⚠️ Native aggressive cancel failed: $e');
+      }
+    }
     debugPrint('Alarm $id cancelled');
   }
 }

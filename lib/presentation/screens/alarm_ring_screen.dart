@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import '../../logic/blocs/alarm/alarm_bloc.dart';
 import '../../services/audio_service.dart';
@@ -64,6 +65,13 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
   }
 
   void _dismiss() {
+    // 1. Stop audio immediately
+    _audioService.stopPlayback();
+    // 2. Cancel the ongoing notification so it clears from the tray
+    FlutterLocalNotificationsPlugin().cancel(
+      id: widget.alarm.id.hashCode & 0x7FFFFFFF,
+    );
+    // 3. Mark alarm inactive and pop
     context
         .read<AlarmBloc>()
         .add(UpdateAlarm(widget.alarm.copyWith(isActive: false)));
@@ -71,10 +79,17 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
   }
 
   void _snooze() {
+    // 1. Stop audio immediately
+    _audioService.stopPlayback();
+    // 2. Cancel the ongoing notification so the NEXT alarm fires as fullScreenIntent
+    FlutterLocalNotificationsPlugin().cancel(
+      id: widget.alarm.id.hashCode & 0x7FFFFFFF,
+    );
+    // 3. Reschedule for 5 minutes from now
     final snoozeTime = DateTime.now().add(const Duration(minutes: 5));
     context
         .read<AlarmBloc>()
-        .add(UpdateAlarm(widget.alarm.copyWith(dateTime: snoozeTime)));
+        .add(UpdateAlarm(widget.alarm.copyWith(dateTime: snoozeTime, isActive: true)));
     Navigator.of(context).pop();
   }
 

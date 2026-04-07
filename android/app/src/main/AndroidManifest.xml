@@ -22,9 +22,10 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleInstance"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
+            android:excludeFromRecents="true"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize"
@@ -39,6 +40,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!--
+            AlarmTriggerReceiver: Custom receiver for aggressive auto-show launch
+            even when the screen is ON.
+        -->
+        <receiver
+            android:name=".AlarmTriggerReceiver"
+            android:exported="true" />
 
         <!--
             ScheduledNotificationReceiver: the ACTUAL class name used by flutter_local_notifications.

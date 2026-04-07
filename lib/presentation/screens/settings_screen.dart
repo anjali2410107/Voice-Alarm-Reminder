@@ -108,62 +108,6 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
             ),
           ],
           const Divider(height: 32),
-          _buildSection(context, 'Troubleshooting'),
-          ListTile(
-            leading: const Icon(Icons.notifications_active_rounded, color: Colors.green),
-            title: const Text('1. Test Immediate Notification'),
-            subtitle: const Text('Fires RIGHT NOW — tells us if notifications work at all'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () async {
-              final plugin = FlutterLocalNotificationsPlugin();
-              await plugin.show(
-                id: 998,
-                title: '\u{1F514} Immediate Test',
-                body: 'Notifications work! Problem is with scheduling if alarm still fails.',
-                notificationDetails: const NotificationDetails(
-                  android: AndroidNotificationDetails(
-                    'alarm_channel_v2', 'Alarm Notifications',
-                    importance: Importance.max,
-                    priority: Priority.high,
-                    playSound: true,
-                    enableVibration: true,
-                  ),
-                ),
-              );
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Immediate notification sent — check your notification tray'),
-                    backgroundColor: Colors.green,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.bug_report_outlined),
-            title: const Text('2. Test Scheduled Alarm (5 seconds)'),
-            subtitle: const Text('Via AlarmManager — lock your phone and wait'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-               final now = DateTime.now().add(const Duration(seconds: 5));
-               NotificationService().scheduleAlarm(
-                 999,
-                 'Test Alarm',
-                 now,
-                 'test_payload'
-               );
-               ScaffoldMessenger.of(context).showSnackBar(
-                 const SnackBar(
-                   content: Text('Scheduled in 5s — lock phone now!'),
-                   backgroundColor: Colors.indigo,
-                   behavior: SnackBarBehavior.floating,
-                 ),
-               );
-            },
-          ),
-          const SizedBox(height: 16),
           _buildTroubleshootingTips(context),
           const SizedBox(height: 32),
         ],
