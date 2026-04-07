@@ -60,7 +60,6 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     _clockTimer?.cancel();
     _controller.dispose();
     _audioService.stopPlayback();
-    _audioService.dispose();
     _channel.invokeMethod('clearLockScreenFlags').catchError((e) {
       debugPrint('clearLockScreenFlags error: $e');
     });

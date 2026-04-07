@@ -112,6 +112,19 @@ class NotificationService {
       } on PlatformException catch (e) {
         debugPrint('Battery opt request failed: ${e.message}');
       }
+
+      // 🕒 Critical Permissions for Reliable Alarms
+      final overlay = await checkOverlayPermission();
+      if (!overlay) {
+        debugPrint('⚠️ Overlay permission missing — requesting at startup');
+        await openOverlaySettings();
+      }
+
+      final fsi = await checkFullScreenIntentPermission();
+      if (!fsi) {
+        debugPrint('⚠️ Full Screen Intent permission missing — requesting at startup');
+        await openFullScreenIntentSettings();
+      }
     } else if (Platform.isIOS) {
       final IOSFlutterLocalNotificationsPlugin? iosImplementation =
           _notifications.resolvePlatformSpecificImplementation<

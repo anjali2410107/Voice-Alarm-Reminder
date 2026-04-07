@@ -181,7 +181,16 @@ class AlarmCard extends StatelessWidget {
                       const Spacer(),
                       IconButton(
                         onPressed: () {
-                           context.read<AlarmBloc>().add(DeleteAlarm(alarm.id));
+                           context.read<AlarmBloc>().add(UpdateAlarm(
+                             Alarm(
+                               id: alarm.id,
+                               title: alarm.title,
+                               dateTime: alarm.dateTime,
+                               audioPath: null,
+                               isActive: alarm.isActive,
+                               isOneTime: alarm.isOneTime,
+                             ),
+                           ));
                         },
                         icon: const Icon(Icons.delete_outline_rounded),
                         color: Theme.of(context).colorScheme.error,

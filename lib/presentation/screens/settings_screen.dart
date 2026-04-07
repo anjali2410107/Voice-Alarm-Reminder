@@ -67,13 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSection(context, 'App Information'),
-          ListTile(
-            leading: const Icon(Icons.info_outline_rounded),
-            title: const Text('Version'),
-            subtitle: const Text('1.0.0 (MVP)'),
-          ),
-          const Divider(height: 32),
+
           _buildSection(context, 'Permissions Dashboard'),
           if (_isLoading)
             const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
@@ -107,8 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
               () => NotificationService().openFullScreenIntentSettings(),
             ),
           ],
-          const Divider(height: 32),
-          _buildTroubleshootingTips(context),
+
           const SizedBox(height: 32),
         ],
       ),
@@ -148,29 +141,5 @@ class _SettingsScreenState extends State<SettingsScreen> with WidgetsBindingObse
     );
   }
 
-  Widget _buildTroubleshootingTips(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.tips_and_updates_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
-              const SizedBox(width: 8),
-              const Text('STILL NOT WORKING?', style: TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Text('1. Ensure Battery Optimization is set to "Unrestricted"'),
-          const Text('2. Check system Settings > Notifications > Voice Alarms'),
-          const Text('3. Some brands (MIUI/ColorOS) require "Auto-start" to be ON'),
-        ],
-      ),
-    );
-  }
+
 }

@@ -6,6 +6,10 @@ import 'package:path/path.dart' as p;
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 
 class AudioService {
+  static final AudioService _instance = AudioService._internal();
+  factory AudioService() => _instance;
+  AudioService._internal();
+
   final _record = AudioRecorder();
   final _player = AudioPlayer();
   
@@ -33,11 +37,16 @@ class AudioService {
     if (!_isPlayerInit) {
       _isPlayerInit = true;
     }
+    // Stop any existing system alarm/voice before playing voice
+    await FlutterRingtonePlayer().stop();
+    await _player.stop();
     await _player.play(DeviceFileSource(path));
   }
 
   /// Plays the phone's native default ALARM sound as a fallback
   Future<void> playDefaultAlarm() async {
+    // Stop any existing voice playing before playing fallback system alarm
+    await _player.stop();
     await FlutterRingtonePlayer().playAlarm(
       looping: true,
       asAlarm: true, 
