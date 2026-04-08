@@ -3,6 +3,8 @@ import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'recordings_library_screen.dart';
 
+import '../../services/notification_service.dart';
+
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
 
@@ -12,6 +14,15 @@ class MainScaffold extends StatefulWidget {
 
 class _MainScaffoldState extends State<MainScaffold> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future.delayed(const Duration(milliseconds: 500));
+       NotificationService().requestPermissions();
+    });
+  }
 
   final List<Widget> _screens = const [
     HomeScreen(),

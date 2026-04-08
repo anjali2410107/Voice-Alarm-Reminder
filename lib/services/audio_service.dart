@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
@@ -32,29 +33,29 @@ class AudioService {
     return path;
   }
 
-  /// Plays a custom voice recording FROM local storage
   Future<void> playRecording(String path) async {
     if (!_isPlayerInit) {
       _isPlayerInit = true;
     }
-    // Stop any existing system alarm/voice before playing voice
     await FlutterRingtonePlayer().stop();
     await _player.stop();
     await _player.play(DeviceFileSource(path));
   }
 
-  /// Plays the phone's native default ALARM sound as a fallback
   Future<void> playDefaultAlarm() async {
-    // Stop any existing voice playing before playing fallback system alarm
-    await _player.stop();
-    await FlutterRingtonePlayer().playAlarm(
-      looping: true,
-      asAlarm: true, 
-      volume: 1.0,
-    );
+    try {
+      await _player.stop();
+      await Future.delayed(const Duration(milliseconds: 200));
+      await FlutterRingtonePlayer().playAlarm(
+        looping: true,
+        asAlarm: true, 
+        volume: 1.0,
+      );
+    } catch (e) {
+      debugPrint('⚠️ playDefaultAlarm failed: $e');
+    }
   }
 
-  /// Stops ALL sound (both custom recordings and system alarm)
   Future<void> stopPlayback() async {
     await _player.stop();
     await FlutterRingtonePlayer().stop();

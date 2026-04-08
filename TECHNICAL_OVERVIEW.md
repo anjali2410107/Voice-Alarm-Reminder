@@ -31,14 +31,18 @@ One of the most significant challenges was ensuring the alarm could reliably "wa
 3.  **Overlay Permission**: I researched the `SYSTEM_ALERT_WINDOW` permission to allow the alarm screen to bypass lock screens and appear on top of other applications.
 4.  **Battery Optimization**: Implemented logic to request the user to exclude the app from battery optimization, preventing the OS from hibernating the background alarm listeners.
 
-### The MethodChannel Bridge
-Since Flutter is a cross-platform framework, it doesn't have direct access to some deep Android system flags like `FLAG_SHOW_WHEN_LOCKED` or `FLAG_DISMISS_KEYGUARD`. 
-
-**My Solution**:
-I wrote custom **Kotlin** bridge code in `MainActivity.kt` to:
-- Dynamically set window flags that allow the Activity to wake the screen.
-- Dismiss the system keyguard automatically.
 - Ensure the app wins the focus "race" when multiple system alerts are triggering.
+
+- This ensures the UI is rendered immediately, providing a snappy "instant-on" feel, while system dialogs are handled gracefully in the background.
+
+- **Native Power Management**: Corrected invalid native WakeLock configurations that caused crashes on specific hardware brands (e.g., older Samsung or Xiaomi devices).
+
+### Production Hardened Reliability
+To guarantee that the alarm is "impossible to miss," I implemented several production-grade safety layers:
+- **Loud Safety Fallback**: While the app's primary feature is a custom voice reminder, the notification channel itself is now configured with `playSound: true`. If the OS blocks our custom background screen, the loud system alarm will still trigger, ensuring the user is woken up.
+- **Universal Aggressive Scheduling**: I optimized the native Android bridge to use the `setAlarmClock` API for all versions (API 21+). This tells the Android OS that our app is a "Native Clock," bypassing many of the aggressive battery optimizations (Doze mode) that often silence regular background apps.
+- **Boot Persistence**: Registered specialized `BootReceivers` to ensure that if a phone reboots after an alarm is set, the system automatically reconstructs the schedule without the user needing to open the app.
+- **Release Build Guard**: Configured custom ProGuard rules to protect the core background logic from being stripped during the build process, ensuring the "Release" version is as reliable as the "Debug" version.
 
 ## 📚 Resources & Documentation Referenced
 

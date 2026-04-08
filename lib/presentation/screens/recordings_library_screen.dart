@@ -18,7 +18,6 @@ class _RecordingsLibraryScreenState extends State<RecordingsLibraryScreen> {
   @override
   void initState() {
     super.initState();
-    // Always refresh the library list when opening the screen
     context.read<RecordingBloc>().add(LoadRecordings());
   }
 
@@ -137,7 +136,6 @@ class _RecordingCardState extends State<_RecordingCard> {
                 } else {
                   setState(() => _isPlaying = true);
                   await widget.audioService.playRecording(widget.recording.path);
-                  // Manually reset playing state if possible, though stop button is primary
                 }
               },
             ),

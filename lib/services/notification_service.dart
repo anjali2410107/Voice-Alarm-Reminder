@@ -47,8 +47,18 @@ class NotificationService {
 
   Future<void> init() async {
     tz_data.initializeTimeZones();
-    final String timeZoneName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(timeZoneName));
+    try {
+      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      debugPrint('🌍 Timezone set to: $timeZoneName');
+    } catch (e) {
+      debugPrint('⚠️ Timezone lookup failed ($e). Falling back to UTC.');
+      try {
+        tz.setLocalLocation(tz.getLocation('UTC'));
+      } catch (e) {
+        debugPrint('❌ Fatal: UTC fallback failed.');
+      }
+    }
 
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -74,7 +84,6 @@ class NotificationService {
       onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
 
-    // Listen for native aggressive alarm trigger
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'onNativePayload') {
         final payload = call.arguments as String?;
@@ -113,7 +122,6 @@ class NotificationService {
         debugPrint('Battery opt request failed: ${e.message}');
       }
 
-      // 🕒 Critical Permissions for Reliable Alarms
       final overlay = await checkOverlayPermission();
       if (!overlay) {
         debugPrint('⚠️ Overlay permission missing — requesting at startup');
@@ -225,8 +233,6 @@ class NotificationService {
       return;
     }
 
-    // 🚨 CHANNEL V3: Silent but High Importance
-    // Fresh ID required to override Android's cached low-importance or sound settings.
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'alarm_channel_v3',
       'Silent Alarm Notifications',
@@ -239,8 +245,8 @@ class NotificationService {
       ongoing: true,
       autoCancel: false,
       ticker: 'Alarm',
-      playSound: false, // 🔇 NO SYSTEM SOUND
-      enableVibration: false, // 🔇 NO VIBRATION
+      playSound: true,
+      enableVibration: true,
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
@@ -256,7 +262,6 @@ class NotificationService {
     );
 
     try {
-      // 1. Standard notification (silent) — handles lock screen waking
       await _notifications.zonedSchedule(
         id: id,
         title: 'Alarm: $title',
@@ -267,7 +272,6 @@ class NotificationService {
         payload: payload,
       );
 
-      // 2. Aggressive native launch — handles screen-on foregrounding
       await _scheduleNativeAggressiveAlarm(id, dateTime, payload);
 
       debugPrint('✅ Alarm scheduled successfully (Silent + Aggressive)');

@@ -33,6 +33,8 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     _channel.invokeMethod('setShowOnLockScreen').catchError((e) {
       debugPrint('setShowOnLockScreen error: $e');
     });
+    
+    _stopNativeAlarm();
 
     _controller = AnimationController(
       vsync: this,
@@ -50,7 +52,6 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     if (widget.alarm.audioPath != null) {
       await _audioService.playRecording(widget.alarm.audioPath!);
     } else {
-      // Fallback: Default system alarm sound
       await _audioService.playDefaultAlarm();
     }
   }
@@ -66,14 +67,20 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
     super.dispose();
   }
 
+  Future<void> _stopNativeAlarm() async {
+    try {
+      await _channel.invokeMethod('stopAlarmService');
+    } catch (e) {
+      debugPrint('stopAlarmService error: $e');
+    }
+  }
+
   void _dismiss() {
-    // 1. Stop audio immediately
+    _stopNativeAlarm();
     _audioService.stopPlayback();
-    // 2. Cancel the ongoing notification so it clears from the tray
     FlutterLocalNotificationsPlugin().cancel(
       id: widget.alarm.id.hashCode & 0x7FFFFFFF,
     );
-    // 3. Mark alarm inactive and pop
     context
         .read<AlarmBloc>()
         .add(UpdateAlarm(widget.alarm.copyWith(isActive: false)));
@@ -81,13 +88,11 @@ class _AlarmRingScreenState extends State<AlarmRingScreen>
   }
 
   void _snooze() {
-    // 1. Stop audio immediately
+    _stopNativeAlarm();
     _audioService.stopPlayback();
-    // 2. Cancel the ongoing notification so the NEXT alarm fires as fullScreenIntent
     FlutterLocalNotificationsPlugin().cancel(
       id: widget.alarm.id.hashCode & 0x7FFFFFFF,
     );
-    // 3. Reschedule for 5 minutes from now
     final snoozeTime = DateTime.now().add(const Duration(minutes: 5));
     context
         .read<AlarmBloc>()

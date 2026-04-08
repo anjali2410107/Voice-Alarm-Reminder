@@ -14,17 +14,57 @@ import android.provider.Settings
 import android.util.Log
 import android.view.WindowManager
 import io.flutter.embedding.android.FlutterActivity
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.example.alarmclock/settings"
     private var wakeLock: PowerManager.WakeLock? = null
+    private var isAppInForeground = false
+
+    // Catch alarm triggers when the app is already open in the foreground
+    private val localAlarmReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            // Only intercept if the app is actively on screen
+            if (intent.action == "com.example.alarmclock.ALARM_TRIGGER" && isAppInForeground) {
+                // Signal to AlarmTriggerReceiver that we are handling it in Flutter
+                // so it doesn't start the native default alarm sound
+                resultCode = android.app.Activity.RESULT_OK 
+                
+                val payload = intent.getStringExtra("payload")
+                Log.d("MainActivity", "📬 Local broadcast payload received while app is OPEN: $payload")
+                flutterEngine?.dartExecutor?.binaryMessenger?.let {
+                    MethodChannel(it, CHANNEL).invokeMethod("onNativePayload", payload)
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         configureFlags()
         handleIntent(intent)
+        
+        // Register receiver for foreground alarm triggers
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(localAlarmReceiver, IntentFilter("com.example.alarmclock.ALARM_TRIGGER"), Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag")
+            registerReceiver(localAlarmReceiver, IntentFilter("com.example.alarmclock.ALARM_TRIGGER"))
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        wakeLock?.release()
+        wakeLock = null
+        try {
+            unregisterReceiver(localAlarmReceiver)
+        } catch (e: Exception) {
+            // Ignore if not registered
+        }
     }
 
     override fun onAttachedToWindow() {
@@ -34,7 +74,13 @@ class MainActivity : FlutterActivity() {
 
     override fun onResume() {
         super.onResume()
+        isAppInForeground = true
         configureFlags()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        isAppInForeground = false
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -63,15 +109,6 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-            
-            // Loop Keyguard Dismissal for 3 seconds to ensure we win the focus race
-            val km = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
-            val handler = Handler(Looper.getMainLooper())
-            for (i in 0..5) {
-                handler.postDelayed({
-                    km.requestDismissKeyguard(this, null)
-                }, (i * 500).toLong())
-            }
         }
 
         // Apply legacy flags simultaneously for maximum device compatibility
@@ -121,19 +158,25 @@ class MainActivity : FlutterActivity() {
                             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                         )
                         
+                        // 🔥 Universal Aggressive Scheduling: use setAlarmClock for ALL versions (API 21+)
+                        // This is the most reliable way to wake up the system from deep sleep.
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                             if (am.canScheduleExactAlarms()) {
-                                val alarmInfo = AlarmManager.AlarmClockInfo(timeMs, pi)
-                                am.setAlarmClock(alarmInfo, pi)
+                                am.setAlarmClock(AlarmManager.AlarmClockInfo(timeMs, pi), pi)
                             } else {
-                                // Fallback
+                                // Fallback for when "Exact Alarm" setting is disabled by user
                                 am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, timeMs, pi)
                             }
                         } else {
-                            val alarmInfo = AlarmManager.AlarmClockInfo(timeMs, pi)
-                            am.setAlarmClock(alarmInfo, pi)
+                            // Legacy reliable method
+                            am.setAlarmClock(AlarmManager.AlarmClockInfo(timeMs, pi), pi)
                         }
                         Log.d("MainActivity", "✅ Scheduled Aggressive Alarm $id at $timeMs")
+                        result.success(null)
+                    }
+
+                    "stopAlarmService" -> {
+                        AlarmSoundService.stop(this)
                         result.success(null)
                     }
 
@@ -226,9 +269,4 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        wakeLock?.release()
-        wakeLock = null
-    }
 }

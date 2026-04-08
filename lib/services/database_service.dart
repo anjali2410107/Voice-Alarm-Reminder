@@ -21,14 +21,13 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'voice_alarm.db');
     return await openDatabase(
       path,
-      version: 2, // Upgraded version for recordings library
+      version: 2,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Alarms table
     await db.execute('''
       CREATE TABLE alarms (
         id TEXT PRIMARY KEY,
@@ -40,7 +39,6 @@ class DatabaseService {
       )
     ''');
 
-    // Recordings Library table
     await db.execute('''
       CREATE TABLE recordings (
         id TEXT PRIMARY KEY,
@@ -64,7 +62,6 @@ class DatabaseService {
     }
   }
 
-  // --- Alarms CRUD ---
   Future<void> insertAlarm(Alarm alarm) async {
     final db = await database;
     await db.insert(
@@ -101,7 +98,6 @@ class DatabaseService {
     );
   }
 
-  // --- Recordings Library CRUD ---
   Future<void> insertRecording(Recording recording) async {
     final db = await database;
     await db.insert(
